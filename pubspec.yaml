@@ -1,0 +1,13 @@
+name: mcumgr
+description: Dart client for the mcumgr device management protocol
+version: 0.0.1
+repository: https://github.com/jkdhn/mcumgr-dart
+
+environment:
+  sdk: ">=2.16.1 <3.0.0"
+
+dependencies:
+  cbor: ^5.0.1
+
+dev_dependencies:
+  test: ^1.20.1
