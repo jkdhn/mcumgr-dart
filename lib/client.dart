@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cbor/cbor.dart';
+import 'package:mcumgr/mcumgr.dart';
 import 'package:mcumgr/msg.dart';
 import 'package:mcumgr/src/encoding.dart';
 import 'package:mcumgr/src/mgmt/header.dart';
@@ -9,12 +10,22 @@ import 'package:mcumgr/src/smp/smp.dart';
 
 typedef WriteCallback = void Function(List<int>);
 
+/// An mcumgr client.
+///
+/// Pass your own transport layer to the constructor.
+/// Call methods on this class to execute commands.
+///
+/// Multiple commands may be executed at the same time.
 class Client {
   final Stream<Packet> _input;
   final WriteCallback _output;
   final Encoding _encoding;
   var _sequence = 0;
 
+  /// Creates a client.
+  ///
+  /// When executing a client, the request is sent using the [output] callback
+  /// and the response is read from the [input] stream.
   Client({
     required Stream<List<int>> input,
     required WriteCallback output,
@@ -82,6 +93,14 @@ class Client {
     );
   }
 
+  /// Executes a message.
+  ///
+  /// Fails if no response is received within the timeout.
+  ///
+  /// If available, use high-level API methods such as
+  /// [ClientImgExtension.uploadImage] instead.
+  /// This low-level method requires building the message and decoding
+  /// the response (including error codes) yourself.
   Future<Message> execute(Message msg, Duration timeout) =>
       _execute(_createPacket(msg), timeout).then(_createMessage);
 }

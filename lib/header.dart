@@ -9,6 +9,7 @@ int _decodeInt(List<int> input, int offset, int length) {
   return result;
 }
 
+/// The version number of an image.
 class ImageVersion {
   final int major;
   final int minor;
@@ -40,6 +41,7 @@ class ImageVersion {
   }
 }
 
+/// The header of an image file.
 class McuImageHeader {
   final int loadAddress;
   final int headerSize;
@@ -76,6 +78,7 @@ class McuImageHeader {
   }
 }
 
+/// TLV section of an image file.
 class McuImageTLV {
   final List<McuImageTLVEntry> entries;
 
@@ -107,6 +110,7 @@ class McuImageTLV {
   }
 }
 
+/// An entry of the TLV section of an image file.
 class McuImageTLVEntry {
   final int type;
   final int length;
@@ -133,6 +137,7 @@ class McuImageTLVEntry {
   }
 }
 
+/// An image file which can be uploaded to a device.
 class McuImage {
   final McuImageHeader header;
   final McuImageTLV tlv;
@@ -149,6 +154,7 @@ class McuImage {
 
   McuImage(this.header, this.tlv) : hash = _getHash(tlv);
 
+  /// Decodes an image file.
   factory McuImage.decode(List<int> input) {
     final header = McuImageHeader.decode(input);
     final tlv = McuImageTLV.decode(input, header.headerSize + header.imageSize);

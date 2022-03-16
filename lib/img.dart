@@ -1,17 +1,17 @@
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/client.dart';
+import 'package:mcumgr/header.dart';
 import 'package:mcumgr/msg.dart';
 import 'package:mcumgr/util.dart';
 
 const _imgGroup = 1;
 const _imgCmdState = 0;
 const _imgCmdUpload = 1;
-const _imgCmdFile = 2;
-const _imgCmdCoreList = 3;
-const _imgCmdCoreLoad = 4;
 const _imgCmdErase = 5;
 
+/// The state of the images on a devices.
 class ImageState {
+  /// The list of images on the device.
   final List<ImageStateImage> images;
   final int splitStatus;
 
@@ -27,6 +27,7 @@ class ImageState {
   }
 }
 
+/// An image on a device.
 class ImageStateImage {
   final int slot;
   final String version;
@@ -61,6 +62,7 @@ class ImageUploadResponse {
 }
 
 extension ClientImgExtension on Client {
+  /// Reads which images are currently present on the device.
   Future<ImageState> readImageState(Duration timeout) {
     return execute(
       Message(
@@ -74,6 +76,9 @@ extension ClientImgExtension on Client {
     ).unwrap().then((value) => ImageState(value.data));
   }
 
+  /// Marks the image with the specified hash as pending.
+  ///
+  /// If [confirm] is false, the device will boot the image only once.
   Future<ImageState> setPendingImage(
       List<int> hash, bool confirm, Duration timeout) {
     return execute(
@@ -91,11 +96,17 @@ extension ClientImgExtension on Client {
     ).unwrap().then((value) => ImageState(value.data));
   }
 
+  /// Confirms the currently running image.
+  ///
+  /// The device will keep using this image after future reboots.
   Future<ImageState> confirmImageState(Duration timeout) {
     // empty hash = currently booted image
     return setPendingImage([], true, timeout);
   }
 
+  /// Sends the first chunk of a firmware upload.
+  ///
+  /// This is a low-level API. You are probably looking for [uploadImage].
   Future<ImageUploadResponse> startImageUpload(
     int image,
     List<int> data,
@@ -121,6 +132,11 @@ extension ClientImgExtension on Client {
     ).unwrap().then((value) => ImageUploadResponse(value.data));
   }
 
+  /// Sends a chunk of a firmware upload.
+  ///
+  /// The first chunk should be uploaded using [startImageUpload] instead.
+  ///
+  /// This is a low-level API. You are probably looking for [uploadImage].
   Future<ImageUploadResponse> continueImageUpload(
     int offset,
     List<int> data,
@@ -141,12 +157,20 @@ extension ClientImgExtension on Client {
     ).unwrap().then((value) => ImageUploadResponse(value.data));
   }
 
+  /// Uploads an image to the device.
+  ///
+  /// [image] is the type of the image (usually 0).
+  /// The [data] will be sent to the device in chunks.
+  /// Use [McuImage.decode] to obtain the [hash].
+  ///
+  /// If specified, [onProgress] will be called after each uploaded chunk.
+  /// Its parameter is the number bytes uploaded so far.
   Future<void> uploadImage(
     int image,
     List<int> data,
     List<int> hash,
-    int chunkSize,
     Duration chunkTimeout, {
+    int chunkSize = 128,
     void Function(int)? onProgress,
   }) async {
     int offset = 0;
@@ -181,6 +205,10 @@ extension ClientImgExtension on Client {
     }
   }
 
+  /// Erases the image in the inactive slot.
+  ///
+  /// There is no need to call this before uploading an image, it will be
+  /// overwritten automatically.
   Future<void> erase(Duration timeout) {
     return execute(
       Message(

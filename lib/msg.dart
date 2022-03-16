@@ -2,6 +2,7 @@ import 'package:cbor/cbor.dart';
 
 enum Operation { read, write }
 
+/// A message sent to or received from a device.
 class Message {
   final Operation op;
   final int group;

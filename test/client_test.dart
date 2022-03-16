@@ -79,8 +79,8 @@ void main() {
         0,
         localImage,
         localHash,
-        chunkSize,
         Duration(seconds: 1),
+        chunkSize: chunkSize,
       );
       expect(uploadedImage, localImage);
     });

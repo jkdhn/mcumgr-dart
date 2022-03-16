@@ -1,6 +1,7 @@
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/msg.dart';
 
+/// Thrown if the response contains a non-zero response code.
 class McuException implements Exception {
   final int rc;
 
@@ -13,6 +14,8 @@ class McuException implements Exception {
 }
 
 extension FutureMessageExtension on Future<Message> {
+  /// Checks the response code and throws [McuException] on error.
+  /// Otherwise, simply returns this message.
   Future<Message> unwrap() {
     return then(
       (value) {
