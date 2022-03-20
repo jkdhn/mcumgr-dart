@@ -17,7 +17,7 @@ typedef WriteCallback = void Function(List<int>);
 ///
 /// Multiple commands may be executed at the same time.
 class Client {
-  final Stream<Packet> _input;
+  final _input = StreamController<Packet>.broadcast();
   final WriteCallback _output;
   final Encoding _encoding;
   var _sequence = 0;
@@ -30,12 +30,17 @@ class Client {
     required Stream<List<int>> input,
     required WriteCallback output,
     Encoding encoding = smp,
-  })  : _input = encoding.decode(input),
-        _output = output,
-        _encoding = encoding;
+  })  : _output = output,
+        _encoding = encoding {
+    encoding.decode(input).listen(
+          _input.add,
+          onError: _input.addError,
+          onDone: _input.close,
+        );
+  }
 
   Future<Packet> _execute(Packet packet, Duration timeout) {
-    final future = _input
+    final future = _input.stream
         .where((m) => m.header.sequence == packet.header.sequence)
         .timeout(timeout)
         .first;
