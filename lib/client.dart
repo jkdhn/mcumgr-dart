@@ -20,6 +20,7 @@ class Client {
   final _input = StreamController<Packet>.broadcast();
   final WriteCallback _output;
   final Encoding _encoding;
+  late StreamSubscription<Packet> _subscription;
   var _sequence = 0;
 
   /// Creates a client.
@@ -32,11 +33,15 @@ class Client {
     Encoding encoding = smp,
   })  : _output = output,
         _encoding = encoding {
-    encoding.decode(input).listen(
+    _subscription = encoding.decode(input).listen(
           _input.add,
           onError: _input.addError,
           onDone: _input.close,
         );
+  }
+
+  Future<void> close() {
+    return _subscription.cancel();
   }
 
   Future<Packet> _execute(Packet packet, Duration timeout) {

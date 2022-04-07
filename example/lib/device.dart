@@ -39,7 +39,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
 
   @override
   void dispose() {
-    connection?.cancel();
+    disconnect();
     super.dispose();
   }
 
@@ -60,10 +60,18 @@ class _DeviceScreenState extends State<DeviceScreen> {
     );
   }
 
-  void reconnect() {
-    connection?.cancel();
+  Future<void> disconnect() async {
+    // don't really need to close the client
+    // closing the connection causes the subscription stream to end anyways
+    await client?.close();
+    client = null;
+    await connection?.cancel();
     connection = null;
-    Future.delayed(const Duration(seconds: 1)).then((value) => connect());
+  }
+
+  void reconnect() async {
+    await disconnect();
+    connect();
   }
 
   void handleConnectionState(ConnectionStateUpdate event) async {
@@ -81,7 +89,12 @@ class _DeviceScreenState extends State<DeviceScreen> {
         deviceId: widget.device.id,
       );
       newClient = Client(
-        input: widget.ble.subscribeToCharacteristic(characteristic),
+        input: widget.ble.subscribeToCharacteristic(characteristic).handleError(
+          (error) {
+            // ignore errors
+            // disconnecting causes the stream to end anyways
+          },
+        ),
         output: (msg) => widget.ble
             .writeCharacteristicWithoutResponse(characteristic, value: msg),
       );
