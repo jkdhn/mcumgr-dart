@@ -40,13 +40,15 @@ class Client {
         );
   }
 
-  Future<void> close() {
-    return _subscription.cancel();
+  Future<void> close() async {
+    await _subscription.cancel();
+    await _input.close();
   }
 
   Future<Packet> _execute(Packet packet, Duration timeout) {
     final future = _input.stream
         .where((m) => m.header.sequence == packet.header.sequence)
+        .where((m) => _isResponse(m))
         .timeout(timeout)
         .first;
 
@@ -79,6 +81,16 @@ class Client {
       ),
       content: content,
     );
+  }
+
+  bool _isResponse(Packet packet) {
+    switch (packet.header.type) {
+      case PacketType.readResponse:
+      case PacketType.writeResponse:
+        return true;
+      default:
+        return false;
+    }
   }
 
   Message _createMessage(Packet packet) {

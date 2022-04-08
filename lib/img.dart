@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/client.dart';
 import 'package:mcumgr/header.dart';
@@ -59,6 +61,134 @@ class ImageUploadResponse {
 
   ImageUploadResponse(CborMap input)
       : nextOffset = (input[CborString("off")] as CborInt).toInt();
+}
+
+class _ImageUploadChunk {
+  final int offset;
+  final int size;
+  final int end;
+
+  _ImageUploadChunk(this.offset, this.size) : end = offset + size;
+}
+
+class _ImageUpload {
+  final Client client;
+  final int image;
+  final List<int> data;
+  final List<int> hash;
+  final Duration chunkTimeout;
+  final int maxChunkSize;
+  final void Function(int)? onProgress;
+  final int windowSize;
+  final List<_ImageUploadChunk> pending = [];
+  final completer = Completer<void>();
+
+  _ImageUpload({
+    required this.client,
+    required this.image,
+    required this.data,
+    required this.hash,
+    required this.chunkTimeout,
+    required this.maxChunkSize,
+    required this.onProgress,
+    required this.windowSize,
+  });
+
+  int sendChunk(int offset) {
+    int chunkSize = data.length - offset;
+    if (chunkSize > maxChunkSize) {
+      chunkSize = maxChunkSize;
+    }
+    if (chunkSize <= 0) {
+      return 0;
+    }
+    List<int> chunkData = data.sublist(offset, offset + chunkSize);
+
+    final chunk = _ImageUploadChunk(offset, chunkSize);
+    pending.add(chunk);
+
+    final Future<ImageUploadResponse> future;
+    if (offset == 0) {
+      future = client.startImageUpload(
+        image,
+        chunkData,
+        data.length,
+        hash,
+        chunkTimeout,
+      );
+    } else {
+      future = client.continueImageUpload(
+        offset,
+        chunkData,
+        chunkTimeout,
+      );
+    }
+
+    future.then(
+      (response) => _onChunkDone(chunk, response),
+      onError: (error, stackTrace) => _onChunkError(chunk, error, stackTrace),
+    );
+    return chunkSize;
+  }
+
+  void _sendNext(int offset) {
+    while (pending.length < windowSize) {
+      final chunkSize = sendChunk(offset);
+      if (chunkSize == 0) {
+        break;
+      }
+      offset += chunkSize;
+    }
+  }
+
+  void _onChunkDone(_ImageUploadChunk chunk, ImageUploadResponse response) {
+    // remove this chunk and abandon earlier chunks
+    // (if an earlier chunk is still pending, its packet was probably lost)
+    final index = pending.indexOf(chunk);
+    pending.removeRange(0, index + 1);
+    if (index == -1) {
+      // ignore abandoned chunks
+      return;
+    }
+
+    onProgress?.call(response.nextOffset);
+
+    while (pending.isNotEmpty && pending.first.offset != response.nextOffset) {
+      // pending chunk has the wrong offset, abandon it
+      pending.removeAt(0);
+    }
+
+    int nextOffset = response.nextOffset;
+    if (pending.isNotEmpty) {
+      nextOffset = pending.last.end;
+    }
+    _sendNext(nextOffset);
+
+    if (response.nextOffset == data.length) {
+      assert(pending.isEmpty);
+      completer.complete();
+    }
+  }
+
+  void _onChunkError(
+    _ImageUploadChunk chunk,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (!pending.remove(chunk)) {
+      // ignore abandoned chunks
+      return;
+    }
+
+    // abandon all chunks
+    pending.clear();
+
+    completer.completeError(error, stackTrace);
+  }
+
+  void start() {
+    _sendNext(0);
+  }
 }
 
 extension ClientImgExtension on Client {
@@ -165,6 +295,10 @@ extension ClientImgExtension on Client {
   ///
   /// If specified, [onProgress] will be called after each uploaded chunk.
   /// Its parameter is the number bytes uploaded so far.
+  ///
+  /// [windowSize] is the maximum number of in-flight chunks.
+  /// Defaults to 3.
+  /// Use 1 for no concurrency (send packet, wait for response, send next).
   Future<void> uploadImage(
     int image,
     List<int> data,
@@ -172,37 +306,20 @@ extension ClientImgExtension on Client {
     Duration chunkTimeout, {
     int chunkSize = 128,
     void Function(int)? onProgress,
+    int windowSize = 3,
   }) async {
-    int offset = 0;
-    while (offset != data.length) {
-      int size = data.length - offset;
-      if (size > chunkSize) {
-        size = chunkSize;
-      }
-
-      List<int> chunk = data.sublist(offset, offset + size);
-
-      final Future<ImageUploadResponse> future;
-      if (offset == 0) {
-        future = startImageUpload(
-          image,
-          chunk,
-          data.length,
-          hash,
-          chunkTimeout,
-        );
-      } else {
-        future = continueImageUpload(
-          offset,
-          chunk,
-          chunkTimeout,
-        );
-      }
-
-      final response = await future;
-      offset = response.nextOffset;
-      onProgress?.call(offset);
-    }
+    final upload = _ImageUpload(
+      client: this,
+      image: image,
+      data: data,
+      hash: hash,
+      chunkTimeout: chunkTimeout,
+      maxChunkSize: chunkSize,
+      onProgress: onProgress,
+      windowSize: windowSize,
+    );
+    upload.start();
+    return upload.completer.future;
   }
 
   /// Erases the image in the inactive slot.
