@@ -1,5 +1,6 @@
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/mcumgr.dart';
+import 'package:mcumgr/msg.dart';
 import 'package:mcumgr/src/mgmt/header.dart';
 import 'package:mcumgr/src/mgmt/packet.dart';
 import 'package:test/test.dart';
@@ -64,7 +65,7 @@ void main() {
           }));
           return Packet(
             header: Header(
-              type: PacketType.writeResponse,
+              type: Operation.writeResponse,
               flags: 0,
               length: response.length,
               group: 1,

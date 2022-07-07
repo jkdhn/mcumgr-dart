@@ -1,12 +1,5 @@
-enum PacketType {
-  read,
-  readResponse,
-  write,
-  writeResponse,
-}
-
 class Header {
-  final PacketType type;
+  final int type;
   final int flags;
   final int length;
   final int group;
@@ -25,7 +18,7 @@ class Header {
   static const encodedLength = 8;
 
   Header.decode(List<int> input)
-      : type = PacketType.values[input[0] & 0x07],
+      : type = input[0] & 0x07,
         flags = input[1],
         length = ((input[2] << 8) | input[3]),
         group = ((input[4] << 8) | input[5]),
@@ -34,7 +27,7 @@ class Header {
 
   List<int> encode() {
     return [
-      type.index,
+      type & 0x07,
       flags,
       (length >> 8) & 0xFF,
       length & 0xFF,

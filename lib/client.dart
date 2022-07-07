@@ -60,19 +60,9 @@ class Client {
   Packet _createPacket(Message msg) {
     final sequence = _sequence++ & 0xFF;
     final content = cbor.encode(msg.data);
-    final PacketType type;
-    switch (msg.op) {
-      case Operation.read:
-        type = PacketType.read;
-        break;
-      case Operation.write:
-        type = PacketType.write;
-        break;
-    }
-
     return Packet(
       header: Header(
-        type: type,
+        type: msg.op,
         flags: msg.flags,
         length: content.length,
         group: msg.group,
@@ -85,8 +75,8 @@ class Client {
 
   bool _isResponse(Packet packet) {
     switch (packet.header.type) {
-      case PacketType.readResponse:
-      case PacketType.writeResponse:
+      case Operation.readResponse:
+      case Operation.writeResponse:
         return true;
       default:
         return false;
@@ -95,19 +85,8 @@ class Client {
 
   Message _createMessage(Packet packet) {
     final data = cbor.decode(packet.content) as CborMap;
-    final Operation op;
-    switch (packet.header.type) {
-      case PacketType.readResponse:
-        op = Operation.read;
-        break;
-      case PacketType.writeResponse:
-        op = Operation.write;
-        break;
-      default:
-        throw FormatException("type: ${packet.header.type}");
-    }
     return Message(
-      op: op,
+      op: packet.header.type,
       group: packet.header.group,
       id: packet.header.id,
       flags: packet.header.flags,

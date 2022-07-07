@@ -1,9 +1,10 @@
+import 'package:mcumgr/msg.dart';
 import 'package:mcumgr/src/mgmt/header.dart';
 import 'package:mcumgr/src/mgmt/packet.dart';
 
 const eraseCommand = Packet(
   header: Header(
-    type: PacketType.write,
+    type: Operation.write,
     flags: 0,
     length: 1,
     group: 1,
@@ -15,7 +16,7 @@ const eraseCommand = Packet(
 const eraseCommandEncoded = [2, 0, 0, 1, 0, 1, 0, 5, 160];
 const eraseResponse = Packet(
   header: Header(
-    type: PacketType.writeResponse,
+    type: Operation.writeResponse,
     flags: 0,
     length: 6,
     group: 1,

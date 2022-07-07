@@ -1,10 +1,15 @@
 import 'package:cbor/cbor.dart';
 
-enum Operation { read, write }
+class Operation {
+  static const int read = 0;
+  static const int readResponse = 1;
+  static const int write = 2;
+  static const int writeResponse = 3;
+}
 
 /// A message sent to or received from a device.
 class Message {
-  final Operation op;
+  final int op;
   final int group;
   final int id;
   final int flags;
