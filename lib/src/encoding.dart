@@ -1,4 +1,4 @@
-import 'package:mcumgr/src/mgmt/packet.dart';
+import 'package:mcumgr/packet.dart';
 
 abstract class Encoding {
   /**

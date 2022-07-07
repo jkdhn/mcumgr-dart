@@ -1,4 +1,4 @@
-import 'package:mcumgr/src/smp/smp.dart';
+import 'package:mcumgr/src/smp.dart';
 import 'package:test/test.dart';
 
 import 'msg.dart';

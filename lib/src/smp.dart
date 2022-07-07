@@ -1,8 +1,7 @@
 import 'dart:async';
 
+import 'package:mcumgr/packet.dart';
 import 'package:mcumgr/src/encoding.dart';
-import 'package:mcumgr/src/mgmt/header.dart';
-import 'package:mcumgr/src/mgmt/packet.dart';
 
 const smp = Smp();
 

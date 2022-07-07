@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:mcumgr/mcumgr.dart';
-import 'package:mcumgr/src/mgmt/header.dart';
-import 'package:mcumgr/src/mgmt/packet.dart';
-import 'package:mcumgr/src/smp/smp.dart';
+import 'package:mcumgr/packet.dart';
+import 'package:mcumgr/src/smp.dart';
 
 typedef MockClientHandler = Packet Function(Packet);
 

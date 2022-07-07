@@ -1,8 +1,7 @@
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/mcumgr.dart';
 import 'package:mcumgr/msg.dart';
-import 'package:mcumgr/src/mgmt/header.dart';
-import 'package:mcumgr/src/mgmt/packet.dart';
+import 'package:mcumgr/packet.dart';
 import 'package:test/test.dart';
 
 import 'client.dart';

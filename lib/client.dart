@@ -3,10 +3,9 @@ import 'dart:async';
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/mcumgr.dart';
 import 'package:mcumgr/msg.dart';
+import 'package:mcumgr/packet.dart';
 import 'package:mcumgr/src/encoding.dart';
-import 'package:mcumgr/src/mgmt/header.dart';
-import 'package:mcumgr/src/mgmt/packet.dart';
-import 'package:mcumgr/src/smp/smp.dart';
+import 'package:mcumgr/src/smp.dart';
 
 typedef WriteCallback = void Function(List<int>);
 

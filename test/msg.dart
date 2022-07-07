@@ -1,6 +1,5 @@
 import 'package:mcumgr/msg.dart';
-import 'package:mcumgr/src/mgmt/header.dart';
-import 'package:mcumgr/src/mgmt/packet.dart';
+import 'package:mcumgr/packet.dart';
 
 const eraseCommand = Packet(
   header: Header(
