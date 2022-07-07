@@ -8,11 +8,10 @@ import 'package:mcumgr/src/smp/smp.dart';
 typedef MockClientHandler = Packet Function(Packet);
 
 class MockClient extends Client {
-  final StreamController<List<int>> _controller;
-
-  MockClient._create(this._controller, MockClientHandler handler)
+  MockClient._create(
+      StreamController<List<int>> controller, MockClientHandler handler)
       : super(
-          input: _controller.stream,
+          input: controller.stream,
           output: (msg) {
             final header = Header.decode(msg);
             final command = Packet(
@@ -21,15 +20,11 @@ class MockClient extends Client {
             );
             final response = handler(command);
             final encoded = smp.encode(response);
-            _controller.add(encoded);
+            controller.add(encoded);
           },
         );
 
   factory MockClient(MockClientHandler handler) {
     return MockClient._create(StreamController.broadcast(), handler);
-  }
-
-  Future<void> close() {
-    return _controller.close();
   }
 }

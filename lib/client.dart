@@ -18,8 +18,7 @@ typedef WriteCallback = void Function(List<int>);
 /// Multiple commands may be executed at the same time.
 class Client {
   final _input = StreamController<Packet>.broadcast();
-  final WriteCallback _output;
-  final Encoding _encoding;
+  final _output = StreamController<Packet>.broadcast();
   late StreamSubscription<Packet> _subscription;
   var _sequence = 0;
 
@@ -31,19 +30,26 @@ class Client {
     required Stream<List<int>> input,
     required WriteCallback output,
     Encoding encoding = smp,
-  })  : _output = output,
-        _encoding = encoding {
+  }) {
     _subscription = encoding.decode(input).listen(
           _input.add,
           onError: _input.addError,
           onDone: _input.close,
         );
+    _output.stream.listen((packet) {
+      output(encoding.encode(packet));
+    });
   }
 
   Future<void> close() async {
     await _subscription.cancel();
     await _input.close();
+    await _output.close();
   }
+
+  Stream<Packet> get incoming => _input.stream;
+
+  Stream<Packet> get outgoing => _output.stream;
 
   Future<Packet> _execute(Packet packet, Duration timeout) {
     final future = _input.stream
@@ -52,7 +58,7 @@ class Client {
         .timeout(timeout)
         .first;
 
-    _output(_encoding.encode(packet));
+    send(packet);
 
     return future;
   }
@@ -104,4 +110,12 @@ class Client {
   /// the response (including error codes) yourself.
   Future<Message> execute(Message msg, Duration timeout) =>
       _execute(_createPacket(msg), timeout).then(_createMessage);
+
+  /// Sends the [packet].
+  ///
+  /// Unless you need full control over the protocol, use [execute] instead.
+  /// This method returns instantly and doesn't wait for a response.
+  void send(Packet packet) {
+    _output.add(packet);
+  }
 }

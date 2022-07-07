@@ -18,7 +18,6 @@ void main() {
         },
       );
       final future = client.erase(Duration(seconds: 1));
-      await client.close();
       await future;
     });
 
