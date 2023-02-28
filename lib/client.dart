@@ -16,6 +16,8 @@ typedef WriteCallback = void Function(List<int>);
 ///
 /// Multiple commands may be executed at the same time.
 class Client {
+  // The maximum size of a packet sent over the transport layer. MTU-3 for btle.
+  final int maxPacketSize;
   final _input = StreamController<Packet>.broadcast();
   final _output = StreamController<Packet>.broadcast();
   late StreamSubscription<Packet> _subscription;
@@ -26,10 +28,11 @@ class Client {
   /// When executing a client, the request is sent using the [output] callback
   /// and the response is read from the [input] stream.
   Client({
+    required mtu,
     required Stream<List<int>> input,
     required WriteCallback output,
     Encoding encoding = smp,
-  }) {
+  }) : maxPacketSize = (mtu - 3) {
     _subscription = encoding.decode(input).listen(
           _input.add,
           onError: _input.addError,
@@ -51,11 +54,7 @@ class Client {
   Stream<Packet> get outgoing => _output.stream;
 
   Future<Packet> _execute(Packet packet, Duration timeout) {
-    final future = _input.stream
-        .where((m) => m.header.sequence == packet.header.sequence)
-        .where((m) => _isResponse(m))
-        .timeout(timeout)
-        .first;
+    final future = _input.stream.where((m) => m.header.sequence == packet.header.sequence).where((m) => _isResponse(m)).timeout(timeout).first;
 
     send(packet);
 
@@ -65,7 +64,7 @@ class Client {
   Packet _createPacket(Message msg) {
     final sequence = _sequence++ & 0xFF;
     final content = cbor.encode(msg.data);
-    return Packet(
+    final packet = Packet(
       header: Header(
         type: msg.op,
         flags: msg.flags,
@@ -76,6 +75,8 @@ class Client {
       ),
       content: content,
     );
+    //final packetLength = smp.encode(packet).length;
+    return packet;
   }
 
   bool _isResponse(Packet packet) {
@@ -107,8 +108,7 @@ class Client {
   /// [ClientImgExtension.uploadImage] instead.
   /// This low-level method requires building the message and decoding
   /// the response (including error codes) yourself.
-  Future<Message> execute(Message msg, Duration timeout) =>
-      _execute(_createPacket(msg), timeout).then(_createMessage);
+  Future<Message> execute(Message msg, Duration timeout) => _execute(_createPacket(msg), timeout).then(_createMessage);
 
   /// Sends the [packet].
   ///

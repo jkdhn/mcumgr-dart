@@ -7,9 +7,9 @@ import 'package:mcumgr/src/smp.dart';
 typedef MockClientHandler = Packet Function(Packet);
 
 class MockClient extends Client {
-  MockClient._create(
-      StreamController<List<int>> controller, MockClientHandler handler)
+  MockClient._create(StreamController<List<int>> controller, MockClientHandler handler)
       : super(
+          mtu: 498,
           input: controller.stream,
           output: (msg) {
             final header = Header.decode(msg);
