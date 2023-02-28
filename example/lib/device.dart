@@ -48,9 +48,7 @@ class _DeviceScreenState extends State<DeviceScreen> {
     final stream = widget.ble.connectToDevice(
       id: widget.device.id,
       servicesWithCharacteristicsToDiscover: {
-        Uuid.parse("8d53dc1d-1db7-4cd3-868b-8a527460aa84"): [
-          Uuid.parse("da2e7828-fbce-4e01-ae9e-261174997c48")
-        ]
+        Uuid.parse("8d53dc1d-1db7-4cd3-868b-8a527460aa84"): [Uuid.parse("da2e7828-fbce-4e01-ae9e-261174997c48")]
       },
       connectionTimeout: widget.connectionTimeout,
     );
@@ -82,21 +80,21 @@ class _DeviceScreenState extends State<DeviceScreen> {
     Client? newClient;
     ImageState? newImageState;
     if (event.connectionState == DeviceConnectionState.connected) {
-      await widget.ble.requestMtu(deviceId: widget.device.id, mtu: 517);
+      final actualMtu = await widget.ble.requestMtu(deviceId: widget.device.id, mtu: 498);
       final characteristic = QualifiedCharacteristic(
         serviceId: Uuid.parse("8d53dc1d-1db7-4cd3-868b-8a527460aa84"),
         characteristicId: Uuid.parse("da2e7828-fbce-4e01-ae9e-261174997c48"),
         deviceId: widget.device.id,
       );
       newClient = Client(
+        mtu: actualMtu,
         input: widget.ble.subscribeToCharacteristic(characteristic).handleError(
           (error) {
             // ignore errors
             // disconnecting causes the stream to end anyways
           },
         ),
-        output: (msg) => widget.ble
-            .writeCharacteristicWithoutResponse(characteristic, value: msg),
+        output: (msg) => widget.ble.writeCharacteristicWithoutResponse(characteristic, value: msg),
       );
       newImageState = await newClient.readImageState(timeout);
     }
@@ -274,16 +272,14 @@ class ImageWidget extends StatelessWidget {
       trailing = TextButton(
         child: const Text("CONFIRM"),
         onPressed: () async {
-          onImageStateChanged(
-              await client.confirmImageState(_DeviceScreenState.timeout));
+          onImageStateChanged(await client.confirmImageState(_DeviceScreenState.timeout));
         },
       );
     } else if (!image.active && !image.pending) {
       trailing = TextButton(
         child: const Text("TEST"),
         onPressed: () async {
-          onImageStateChanged(await client.setPendingImage(
-              image.hash, false, _DeviceScreenState.timeout));
+          onImageStateChanged(await client.setPendingImage(image.hash, false, _DeviceScreenState.timeout));
         },
       );
     }

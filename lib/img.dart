@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:cbor/cbor.dart';
 import 'package:mcumgr/client.dart';
@@ -17,9 +18,7 @@ class ImageState {
   final int splitStatus;
 
   ImageState(CborMap input)
-      : images = (input[CborString("images")] as CborList)
-            .map((value) => ImageStateImage(value as CborMap))
-            .toList(),
+      : images = (input[CborString("images")] as CborList).map((value) => ImageStateImage(value as CborMap)).toList(),
         splitStatus = (input[CborString("splitStatus")] as CborInt).toInt();
 
   @override
@@ -58,8 +57,7 @@ class ImageStateImage {
 class ImageUploadResponse {
   final int nextOffset;
 
-  ImageUploadResponse(CborMap input)
-      : nextOffset = (input[CborString("off")] as CborInt).toInt();
+  ImageUploadResponse(CborMap input) : nextOffset = (input[CborString("off")] as CborInt).toInt();
 }
 
 class _ImageUploadChunk {
@@ -76,7 +74,7 @@ class _ImageUpload {
   final List<int> data;
   final List<int> hash;
   final Duration chunkTimeout;
-  final int maxChunkSize;
+  //final int maxChunkSize;
   final void Function(int)? onProgress;
   final int windowSize;
   final List<_ImageUploadChunk> pending = [];
@@ -88,16 +86,57 @@ class _ImageUpload {
     required this.data,
     required this.hash,
     required this.chunkTimeout,
-    required this.maxChunkSize,
+    //required this.maxChunkSize,
     required this.onProgress,
     required this.windowSize,
   });
 
-  int sendChunk(int offset) {
-    int chunkSize = data.length - offset;
-    if (chunkSize > maxChunkSize) {
-      chunkSize = maxChunkSize;
+  int getAdditionalSize(int offset) {
+    // "sha" and "image" params are only sent in the first packet.
+    if (offset == 0) {
+      // "Android-nRF-Connect-Device-Manager uses truncated_hash, we use full
+      final shaSize = cbor.encode(CborString("sha")).length + cbor.encode(CborBytes(hash)).length;
+      // "Android-nRF-Connect-Device-Manager  only sends "image" if image > 0 since image = 0 is default.
+      final imageSize = cbor.encode(CborString("image")).length + cbor.encode(CborSmallInt(image)).length;
+      return shaSize + imageSize;
+    } else {
+      return 0;
     }
+  }
+
+  int getMaxChunkSize(int offset) {
+    // This code is taken from "Android-nRF-Connect-Device-Manager , Uploader.kt"
+    final headerSize = 8;
+    // Size of the indefinite length map tokens (bf, ff)
+    final mapSize = 2;
+    // Size of the field name "data" utf8 string
+    final dataStringSize = cbor.encode(CborString("data")).length;
+
+    // Size of the string "off" plus the length of the offset integer
+
+    final offsetSize = cbor.encode(CborString("off")).length + cbor.encode(CborSmallInt(offset)).length;
+
+    final lengthSize = offset == 0 ? cbor.encode(CborString("len")).length + cbor.encode(CborSmallInt(data.length)).length : 0;
+
+    final implSpecificSize = getAdditionalSize(offset);
+    final combinedSize = headerSize + mapSize + offsetSize + lengthSize + implSpecificSize + dataStringSize;
+    // Now we calculate the max amount of data that we can fit given the MTU.
+    final maxDataLength = client.maxPacketSize - combinedSize;
+    // We have to take into account the few bytes of CBOR which describe the length of the data.
+    // Even though we don't know the actual length at this point, the maxDataLength is guaranteed
+    // to be larger than what we will eventually send, making this calculation always correct.
+    final maxDataUIntTokenSize = cbor.encode(CborSmallInt(maxDataLength)).length;
+    // Final data chunk size
+    final maxChunkSize = client.maxPacketSize - combinedSize - maxDataUIntTokenSize;
+    return min(maxChunkSize, data.length - offset);
+  }
+
+  int sendChunk(int offset) {
+    int chunkSize = getMaxChunkSize(offset);
+    // int chunkSize = data.length - offset;
+    // if (chunkSize > maxChunkSize) {
+    //   chunkSize = maxChunkSize;
+    // }
     if (chunkSize <= 0) {
       return 0;
     }
@@ -208,8 +247,7 @@ extension ClientImgExtension on Client {
   /// Marks the image with the specified hash as pending.
   ///
   /// If [confirm] is false, the device will boot the image only once.
-  Future<ImageState> setPendingImage(
-      List<int> hash, bool confirm, Duration timeout) {
+  Future<ImageState> setPendingImage(List<int> hash, bool confirm, Duration timeout) {
     return execute(
       Message(
         op: Operation.write,
@@ -303,7 +341,7 @@ extension ClientImgExtension on Client {
     List<int> data,
     List<int> hash,
     Duration chunkTimeout, {
-    int chunkSize = 128,
+    //int chunkSize = 128,
     void Function(int)? onProgress,
     int windowSize = 3,
   }) async {
@@ -313,7 +351,7 @@ extension ClientImgExtension on Client {
       data: data,
       hash: hash,
       chunkTimeout: chunkTimeout,
-      maxChunkSize: chunkSize,
+      //maxChunkSize: chunkSize,
       onProgress: onProgress,
       windowSize: windowSize,
     );
